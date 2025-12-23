@@ -95,6 +95,7 @@ interface ProofStep {
   rule: InferenceRule;
   justification: string[];  // IDs of supporting steps
   depth: number;            // For subproof nesting
+  theoremId?: string;       // For rule='theorem', references ProvenTheorem.id
 }
 
 // Inference rules (natural deduction)
@@ -105,17 +106,25 @@ type InferenceRule =
   | 'implies_intro' | 'implies_elim'
   | 'not_intro' | 'not_elim'
   | 'iff_intro' | 'iff_elim'
-  | 'bottom_elim' | 'raa';
+  | 'bottom_elim' | 'raa'
+  | 'theorem';              // Citing a previously-proven theorem
 
 // Problem definition
 interface Problem {
   id: string;
+  type: 'exercise' | 'derivation';  // derivation = unlocks a rule when proven
   premises: Formula[];
   conclusion: Formula;
   difficulty: 1 | 2 | 3 | 4 | 5;
   hint?: string;
   tags?: string[];
-  systemId?: string;  // Required proof system, or null for any
+  unlocksRule?: string;             // Rule ID unlocked by proving this (if type=derivation)
+  requiredRules?: string[];         // Derived rules required to attempt
+  ruleOverride?: {                  // Instructor override for rule availability
+    mode: 'allow' | 'restrict';
+    rules: string[];
+  };
+  schemaVersion: number;
 }
 
 // User's proof attempt (stored locally, synced later)
@@ -128,9 +137,9 @@ interface Submission {
   startedAt: string;         // ISO timestamp
   completedAt?: string;
   attempts: number;          // How many times submitted for validation
-  hintsUsed: number;
-  systemId: string;          // Which proof system was used
+  hintsUsed: number;         // Visible to instructors, no automatic penalty
   clientVersion: string;     // App version for compatibility
+  schemaVersion: number;
 }
 
 // Batch export for grading
@@ -138,6 +147,94 @@ interface SubmissionExport {
   exportedAt: string;
   clientVersion: string;
   submissions: Submission[];
+}
+
+// --- Instructor Feedback (design now, implement v2) ---
+
+interface Feedback {
+  id: string;
+  submissionId: string;
+  instructorId: string;
+  createdAt: string;
+  grade?: 'pass' | 'fail' | 'partial';
+  score?: number;
+  maxScore?: number;
+  overallComment?: string;
+  stepComments: StepComment[];
+  schemaVersion: number;
+}
+
+interface StepComment {
+  stepId: string;           // References ProofStep.id
+  comment: string;
+  type: 'error' | 'suggestion' | 'praise';
+}
+
+// --- Truth Table Exercises ---
+
+interface TruthTableProblem {
+  id: string;
+  formula: Formula;
+  difficulty: 1 | 2 | 3 | 4 | 5;
+  hint?: string;
+  tags?: string[];
+  schemaVersion: number;
+}
+
+interface TruthTableSubmission {
+  id: string;
+  problemId: string;
+  userId?: string;
+  variables: string[];      // Column headers, e.g., ['P', 'Q']
+  rows: TruthTableRow[];
+  status: 'in_progress' | 'completed' | 'abandoned';
+  startedAt: string;
+  completedAt?: string;
+  attempts: number;
+  hintsUsed: number;
+  clientVersion: string;
+  schemaVersion: number;
+}
+
+interface TruthTableRow {
+  inputs: boolean[];        // Values for each variable
+  output: boolean;          // Student's answer for formula value
+  correct?: boolean;        // Set after validation
+}
+
+// --- Prove-to-Use Progression ---
+
+interface RuleDefinition {
+  id: string;
+  name: string;
+  abbreviation: string;     // e.g., 'MT' for Modus Tollens
+  category: 'primitive' | 'derived';
+  unlockProblemId?: string; // Problem that unlocks this rule (if derived)
+  description: string;
+  schema: {
+    premises: string[];     // e.g., ['P → Q', '¬Q']
+    conclusion: string;     // e.g., '¬P'
+  };
+}
+
+interface UserProgress {
+  id: string;
+  unlockedRules: string[];           // Derived rule IDs proven
+  theoremLibrary: ProvenTheorem[];   // User's personal theorem library
+  createdAt: string;
+  updatedAt: string;
+  schemaVersion: number;
+}
+
+interface ProvenTheorem {
+  id: string;
+  sourceSubmissionId: string;
+  sourceProblemId: string;
+  premises: Formula[];
+  conclusion: Formula;
+  name?: string;            // User-assigned name, e.g., "My DeMorgan Lemma"
+  provenAt: string;
+  schemaVersion: number;
 }
 ```
 
@@ -161,6 +258,20 @@ interface StoragePort {
 
   // Export for grading
   exportSubmissions(): Promise<SubmissionExport>;
+
+  // Feedback (v2)
+  importFeedback(feedback: Feedback[]): Promise<void>;
+  getFeedback(submissionId: string): Promise<Feedback | null>;
+
+  // Truth tables
+  getTruthTableProblems(): Promise<TruthTableProblem[]>;
+  saveTruthTableSubmission(sub: TruthTableSubmission): Promise<void>;
+  getTruthTableSubmission(problemId: string): Promise<TruthTableSubmission | null>;
+
+  // User progress (prove-to-use)
+  getProgress(): Promise<UserProgress>;
+  unlockRule(ruleId: string): Promise<void>;
+  addTheorem(theorem: ProvenTheorem): Promise<void>;
 
   // Sync (no-op for local adapter)
   sync(): Promise<SyncResult>;
@@ -213,6 +324,17 @@ This ensures:
 
 ---
 
+## Schema Versioning
+
+Data model will evolve. Strategy:
+
+1. **`schemaVersion` field** on all persisted objects (Problem, Submission, etc.)
+2. **Migration functions** in IndexedDB adapter: `migrate_v1_to_v2()`
+3. **Forward compatibility:** Unknown fields ignored, not rejected
+4. **Breaking changes:** Major version bump, migration required on app load
+
+---
+
 ## UX Principles
 
 1. **Keyboard-first, mouse-friendly** — Power users type, beginners click
@@ -223,31 +345,33 @@ This ensures:
 
 ---
 
-## Proof Systems
+## Proof System
 
-Default to **Kalish-Montague** (similar to Fitch-style) for natural deduction.
+MVP uses **Kalish-Montague** (similar to Fitch-style) for natural deduction.
 
-The architecture should support multiple proof systems via a pluggable interface:
+Multiple proof systems (Fitch, Gentzen, Sequent Calculus) are a v2+ consideration. The plugin architecture will be designed when a second system is actually needed—YAGNI.
 
-```typescript
-interface ProofSystem {
-  id: string;
-  name: string;
-  rules: InferenceRule[];
-  validate: (step: ProofStep, context: ProofContext) => ValidationResult;
-  format: (proof: Proof) => FormattedProof;
-}
+---
 
-// Built-in systems
-const systems: ProofSystem[] = [
-  kalishMontague,   // Default
-  fitchStyle,       // Alternative
-  gentzenNK,        // Natural deduction (future)
-  sequentCalculus,  // LK/LJ (future)
-];
-```
+## Prove-to-Use Progression
 
-Users can switch systems in settings. Problems may specify a required system or allow any.
+Users unlock derived rules by proving them first. This creates a natural learning progression where mastery is demonstrated through construction.
+
+**How it works:**
+
+1. **Primitive rules** are available from the start (∧I, ∧E, ∨I, ∨E, →I, →E, ¬I, ¬E, ⊥E, RAA, assumption)
+2. **Derived rules** (Modus Tollens, Hypothetical Syllogism, etc.) start locked
+3. User proves a derivation problem → unlocks the corresponding rule
+4. Unlocked rules can be used as shortcuts in future proofs
+5. **Theorem library:** Users can save proven theorems and cite them in future proofs
+
+**Instructor overrides:**
+
+Problems can specify `ruleOverride` to control which rules are available:
+- `mode: 'allow'` — Only the listed rules are available (ignores user's unlocks)
+- `mode: 'restrict'` — User's unlocks minus the listed rules
+
+This lets instructors create "use only primitives" assignments even for advanced students.
 
 ---
 
@@ -257,13 +381,20 @@ Mobile is a first-class target. Key adaptations:
 
 **Rule Palette**
 - Tap-to-apply rule buttons instead of typing abbreviations
-- Grouped by category: Introduction, Elimination, Structural
+- Grouped by category: Primitive, Derived (unlockable), My Theorems
 - Long-press for rule description/help
+- Locked rules shown grayed with lock icon
 
 ```
 ┌─────────────────────────────────────┐
-│  ∧I   ∧E   ∨I   ∨E   →I   →E   ¬I  │
-│  ¬E   ↔I   ↔E   ⊥E   RAA  ASM      │
+│  Primitive Rules                    │
+│  ∧I  ∧E  ∨I  ∨E  →I  →E  ¬I  ¬E   │
+├─────────────────────────────────────┤
+│  Derived Rules                      │
+│  MT✓  HS✓  DS🔒  Exp🔒  ...         │
+├─────────────────────────────────────┤
+│  My Theorems                        │
+│  T1  T2  T3  ...                    │
 └─────────────────────────────────────┘
 ```
 
@@ -281,3 +412,11 @@ Mobile is a first-class target. Key adaptations:
 ## Open Questions
 
 - [ ] Accessibility requirements (screen reader support for proofs)?
+
+---
+
+## Deferred (v2+)
+
+**Collaborative Proofs:** Real-time collaborative proofs require significant architectural changes (CRDT/OT, WebSocket infrastructure, conflict resolution). This will be designed from scratch if/when prioritized. Current data model intentionally does not include collaboration fields to avoid premature complexity.
+
+**Multiple Proof Systems:** Plugin architecture for Fitch, Gentzen, Sequent Calculus will be designed when a second system is actually needed.
