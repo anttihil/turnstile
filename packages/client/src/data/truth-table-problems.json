@@ -1,0 +1,74 @@
+{
+  "problems": [
+    {
+      "id": "tt-1",
+      "formula": "P /\\ Q",
+      "difficulty": 1,
+      "hint": "Conjunction is true only when both operands are true",
+      "tags": ["basic", "conjunction"]
+    },
+    {
+      "id": "tt-2",
+      "formula": "P \\/ Q",
+      "difficulty": 1,
+      "hint": "Disjunction is true when at least one operand is true",
+      "tags": ["basic", "disjunction"]
+    },
+    {
+      "id": "tt-3",
+      "formula": "~P",
+      "difficulty": 1,
+      "hint": "Negation flips the truth value",
+      "tags": ["basic", "negation"]
+    },
+    {
+      "id": "tt-4",
+      "formula": "P -> Q",
+      "difficulty": 2,
+      "hint": "Implication is false only when the antecedent is true and consequent is false",
+      "tags": ["basic", "implication"]
+    },
+    {
+      "id": "tt-5",
+      "formula": "P <-> Q",
+      "difficulty": 2,
+      "hint": "Biconditional is true when both sides have the same truth value",
+      "tags": ["basic", "biconditional"]
+    },
+    {
+      "id": "tt-6",
+      "formula": "P /\\ (Q \\/ R)",
+      "difficulty": 2,
+      "hint": "Evaluate the disjunction first, then the conjunction",
+      "tags": ["intermediate", "mixed"]
+    },
+    {
+      "id": "tt-7",
+      "formula": "(P -> Q) /\\ (Q -> P)",
+      "difficulty": 3,
+      "hint": "This is equivalent to P ↔ Q",
+      "tags": ["intermediate", "equivalence"]
+    },
+    {
+      "id": "tt-8",
+      "formula": "~(P /\\ Q)",
+      "difficulty": 2,
+      "hint": "Evaluate the conjunction first, then negate",
+      "tags": ["intermediate", "demorgan"]
+    },
+    {
+      "id": "tt-9",
+      "formula": "~P \\/ ~Q",
+      "difficulty": 2,
+      "hint": "Compare this with ~(P ∧ Q) - they're equivalent!",
+      "tags": ["intermediate", "demorgan"]
+    },
+    {
+      "id": "tt-10",
+      "formula": "P \\/ ~P",
+      "difficulty": 1,
+      "hint": "This is a tautology - the law of excluded middle",
+      "tags": ["tautology"]
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "rules": [
+    {
+      "id": "assumption",
+      "name": "Assumption",
+      "abbreviation": "A",
+      "category": "primitive",
+      "description": "Assume a formula to begin a subproof",
+      "schema": {
+        "premises": [],
+        "conclusion": "P (any formula)"
+      }
+    },
+    {
+      "id": "and_intro",
+      "name": "Conjunction Introduction",
+      "abbreviation": "∧I",
+      "category": "primitive",
+      "description": "From A and B, derive A ∧ B",
+      "schema": {
+        "premises": ["A", "B"],
+        "conclusion": "A ∧ B"
+      }
+    },
+    {
+      "id": "and_elim_l",
+      "name": "Conjunction Elimination (Left)",
+      "abbreviation": "∧E",
+      "category": "primitive",
+      "description": "From A ∧ B, derive A",
+      "schema": {
+        "premises": ["A ∧ B"],
+        "conclusion": "A"
+      }
+    },
+    {
+      "id": "and_elim_r",
+      "name": "Conjunction Elimination (Right)",
+      "abbreviation": "∧E",
+      "category": "primitive",
+      "description": "From A ∧ B, derive B",
+      "schema": {
+        "premises": ["A ∧ B"],
+        "conclusion": "B"
+      }
+    },
+    {
+      "id": "or_intro_l",
+      "name": "Disjunction Introduction (Left)",
+      "abbreviation": "∨I",
+      "category": "primitive",
+      "description": "From A, derive A ∨ B",
+      "schema": {
+        "premises": ["A"],
+        "conclusion": "A ∨ B"
+      }
+    },
+    {
+      "id": "or_intro_r",
+      "name": "Disjunction Introduction (Right)",
+      "abbreviation": "∨I",
+      "category": "primitive",
+      "description": "From B, derive A ∨ B",
+      "schema": {
+        "premises": ["B"],
+        "conclusion": "A ∨ B"
+      }
+    },
+    {
+      "id": "or_elim",
+      "name": "Disjunction Elimination",
+      "abbreviation": "∨E",
+      "category": "primitive",
+      "description": "From A ∨ B, and subproofs A→C and B→C, derive C",
+      "schema": {
+        "premises": ["A ∨ B", "[A]...C", "[B]...C"],
+        "conclusion": "C"
+      }
+    },
+    {
+      "id": "implies_intro",
+      "name": "Conditional Introduction",
+      "abbreviation": "→I",
+      "category": "primitive",
+      "description": "From a subproof starting with A and ending with B, derive A → B",
+      "schema": {
+        "premises": ["[A]...B"],
+        "conclusion": "A → B"
+      }
+    },
+    {
+      "id": "implies_elim",
+      "name": "Modus Ponens",
+      "abbreviation": "→E",
+      "category": "primitive",
+      "description": "From A → B and A, derive B",
+      "schema": {
+        "premises": ["A → B", "A"],
+        "conclusion": "B"
+      }
+    },
+    {
+      "id": "not_intro",
+      "name": "Negation Introduction",
+      "abbreviation": "¬I",
+      "category": "primitive",
+      "description": "From a subproof starting with A and ending with ⊥, derive ¬A",
+      "schema": {
+        "premises": ["[A]...⊥"],
+        "conclusion": "¬A"
+      }
+    },
+    {
+      "id": "not_elim",
+      "name": "Double Negation Elimination",
+      "abbreviation": "¬E",
+      "category": "primitive",
+      "description": "From ¬¬A, derive A",
+      "schema": {
+        "premises": ["¬¬A"],
+        "conclusion": "A"
+      }
+    },
+    {
+      "id": "iff_intro",
+      "name": "Biconditional Introduction",
+      "abbreviation": "↔I",
+      "category": "primitive",
+      "description": "From A → B and B → A, derive A ↔ B",
+      "schema": {
+        "premises": ["A → B", "B → A"],
+        "conclusion": "A ↔ B"
+      }
+    },
+    {
+      "id": "iff_elim",
+      "name": "Biconditional Elimination",
+      "abbreviation": "↔E",
+      "category": "primitive",
+      "description": "From A ↔ B and A, derive B (or vice versa)",
+      "schema": {
+        "premises": ["A ↔ B", "A (or B)"],
+        "conclusion": "B (or A)"
+      }
+    },
+    {
+      "id": "bottom_elim",
+      "name": "Ex Falso Quodlibet",
+      "abbreviation": "⊥E",
+      "category": "primitive",
+      "description": "From ⊥, derive any formula",
+      "schema": {
+        "premises": ["⊥"],
+        "conclusion": "P (any formula)"
+      }
+    },
+    {
+      "id": "raa",
+      "name": "Reductio ad Absurdum",
+      "abbreviation": "RAA",
+      "category": "primitive",
+      "description": "From a subproof starting with ¬A and ending with ⊥, derive A",
+      "schema": {
+        "premises": ["[¬A]...⊥"],
+        "conclusion": "A"
+      }
+    },
+    {
+      "id": "modus_tollens",
+      "name": "Modus Tollens",
+      "abbreviation": "MT",
+      "category": "derived",
+      "unlockProblemId": "deriv-mt",
+      "description": "From A → B and ¬B, derive ¬A",
+      "schema": {
+        "premises": ["A → B", "¬B"],
+        "conclusion": "¬A"
+      }
+    },
+    {
+      "id": "hypothetical_syllogism",
+      "name": "Hypothetical Syllogism",
+      "abbreviation": "HS",
+      "category": "derived",
+      "unlockProblemId": "deriv-hs",
+      "description": "From A → B and B → C, derive A → C",
+      "schema": {
+        "premises": ["A → B", "B → C"],
+        "conclusion": "A → C"
+      }
+    },
+    {
+      "id": "disjunctive_syllogism",
+      "name": "Disjunctive Syllogism",
+      "abbreviation": "DS",
+      "category": "derived",
+      "unlockProblemId": "deriv-ds",
+      "description": "From A ∨ B and ¬A, derive B",
+      "schema": {
+        "premises": ["A ∨ B", "¬A"],
+        "conclusion": "B"
+      }
+    }
+  ]
+}

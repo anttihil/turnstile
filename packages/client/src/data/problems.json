@@ -1,0 +1,205 @@
+{
+  "problems": [
+    {
+      "id": "basic-1",
+      "type": "exercise",
+      "premises": ["P", "Q"],
+      "conclusion": "P /\\ Q",
+      "difficulty": 1,
+      "hint": "Use conjunction introduction (∧I) with both premises",
+      "tags": ["basic", "conjunction"]
+    },
+    {
+      "id": "basic-2",
+      "type": "exercise",
+      "premises": ["P /\\ Q"],
+      "conclusion": "P",
+      "difficulty": 1,
+      "hint": "Use conjunction elimination left (∧E)",
+      "tags": ["basic", "conjunction"]
+    },
+    {
+      "id": "basic-3",
+      "type": "exercise",
+      "premises": ["P /\\ Q"],
+      "conclusion": "Q",
+      "difficulty": 1,
+      "hint": "Use conjunction elimination right (∧E)",
+      "tags": ["basic", "conjunction"]
+    },
+    {
+      "id": "basic-4",
+      "type": "exercise",
+      "premises": ["P"],
+      "conclusion": "P \\/ Q",
+      "difficulty": 1,
+      "hint": "Use disjunction introduction left (∨I)",
+      "tags": ["basic", "disjunction"]
+    },
+    {
+      "id": "basic-5",
+      "type": "exercise",
+      "premises": ["Q"],
+      "conclusion": "P \\/ Q",
+      "difficulty": 1,
+      "hint": "Use disjunction introduction right (∨I)",
+      "tags": ["basic", "disjunction"]
+    },
+    {
+      "id": "impl-1",
+      "type": "exercise",
+      "premises": ["P", "P -> Q"],
+      "conclusion": "Q",
+      "difficulty": 2,
+      "hint": "Use modus ponens (→E)",
+      "tags": ["implication", "modus-ponens"]
+    },
+    {
+      "id": "impl-2",
+      "type": "exercise",
+      "premises": [],
+      "conclusion": "P -> P",
+      "difficulty": 2,
+      "hint": "Start a subproof assuming P, then close it with →I",
+      "tags": ["implication", "identity"]
+    },
+    {
+      "id": "impl-3",
+      "type": "exercise",
+      "premises": ["P -> Q", "Q -> R"],
+      "conclusion": "P -> R",
+      "difficulty": 3,
+      "hint": "Assume P in a subproof, derive R, then use →I",
+      "tags": ["implication", "transitivity"]
+    },
+    {
+      "id": "impl-4",
+      "type": "exercise",
+      "premises": ["P /\\ Q -> R"],
+      "conclusion": "P -> (Q -> R)",
+      "difficulty": 3,
+      "hint": "Use nested subproofs: assume P, then assume Q",
+      "tags": ["implication", "exportation"]
+    },
+    {
+      "id": "impl-5",
+      "type": "exercise",
+      "premises": ["P -> (Q -> R)"],
+      "conclusion": "P /\\ Q -> R",
+      "difficulty": 3,
+      "hint": "Assume P ∧ Q, extract P and Q, apply both conditionals",
+      "tags": ["implication", "importation"]
+    },
+    {
+      "id": "neg-1",
+      "type": "exercise",
+      "premises": ["~~P"],
+      "conclusion": "P",
+      "difficulty": 2,
+      "hint": "Use double negation elimination (¬E)",
+      "tags": ["negation"]
+    },
+    {
+      "id": "neg-2",
+      "type": "exercise",
+      "premises": ["P -> Q", "~Q"],
+      "conclusion": "~P",
+      "difficulty": 3,
+      "hint": "Assume P in a subproof, derive contradiction, use ¬I",
+      "tags": ["negation", "modus-tollens"]
+    },
+    {
+      "id": "neg-3",
+      "type": "exercise",
+      "premises": ["P \\/ Q", "~P"],
+      "conclusion": "Q",
+      "difficulty": 3,
+      "hint": "Use disjunction elimination with two subproofs",
+      "tags": ["negation", "disjunction"]
+    },
+    {
+      "id": "neg-4",
+      "type": "exercise",
+      "premises": ["~(P /\\ Q)", "P"],
+      "conclusion": "~Q",
+      "difficulty": 4,
+      "hint": "Assume Q, derive P ∧ Q, contradiction, use ¬I",
+      "tags": ["negation", "demorgan"]
+    },
+    {
+      "id": "adv-1",
+      "type": "exercise",
+      "premises": ["P \\/ Q", "P -> R", "Q -> R"],
+      "conclusion": "R",
+      "difficulty": 4,
+      "hint": "Use disjunction elimination with both conditionals",
+      "tags": ["advanced", "disjunction"]
+    },
+    {
+      "id": "adv-2",
+      "type": "exercise",
+      "premises": ["P <-> Q", "P"],
+      "conclusion": "Q",
+      "difficulty": 3,
+      "hint": "Use biconditional elimination (↔E)",
+      "tags": ["advanced", "biconditional"]
+    },
+    {
+      "id": "adv-3",
+      "type": "exercise",
+      "premises": ["P -> Q", "Q -> P"],
+      "conclusion": "P <-> Q",
+      "difficulty": 3,
+      "hint": "Use biconditional introduction (↔I) with both conditionals",
+      "tags": ["advanced", "biconditional"]
+    },
+    {
+      "id": "adv-4",
+      "type": "exercise",
+      "premises": ["_|_"],
+      "conclusion": "P",
+      "difficulty": 2,
+      "hint": "Use ex falso quodlibet (⊥E)",
+      "tags": ["advanced", "bottom"]
+    },
+    {
+      "id": "adv-5",
+      "type": "exercise",
+      "premises": [],
+      "conclusion": "P \\/ ~P",
+      "difficulty": 5,
+      "hint": "Use RAA: assume ~(P ∨ ~P) and derive a contradiction",
+      "tags": ["advanced", "excluded-middle"]
+    },
+    {
+      "id": "deriv-mt",
+      "type": "derivation",
+      "premises": ["P -> Q", "~Q"],
+      "conclusion": "~P",
+      "difficulty": 3,
+      "unlocksRule": "modus_tollens",
+      "hint": "Prove modus tollens to unlock it as a derived rule",
+      "tags": ["derivation"]
+    },
+    {
+      "id": "deriv-hs",
+      "type": "derivation",
+      "premises": ["P -> Q", "Q -> R"],
+      "conclusion": "P -> R",
+      "difficulty": 3,
+      "unlocksRule": "hypothetical_syllogism",
+      "hint": "Prove hypothetical syllogism to unlock it as a derived rule",
+      "tags": ["derivation"]
+    },
+    {
+      "id": "deriv-ds",
+      "type": "derivation",
+      "premises": ["P \\/ Q", "~P"],
+      "conclusion": "Q",
+      "difficulty": 3,
+      "unlocksRule": "disjunctive_syllogism",
+      "hint": "Prove disjunctive syllogism to unlock it as a derived rule",
+      "tags": ["derivation"]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@turnstile/client",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@turnstile/engine": "workspace:*",
+    "solid-js": "^1.8.11",
+    "@solidjs/router": "^0.10.10"
+  },
+  "devDependencies": {
+    "@solidjs/testing-library": "^0.8.5",
+    "autoprefixer": "^10.4.17",
+    "jsdom": "^24.0.0",
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "vite-plugin-solid": "^2.9.1",
+    "vitest": "^1.2.0"
+  }
+}
