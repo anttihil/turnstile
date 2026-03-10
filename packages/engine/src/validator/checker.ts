@@ -99,41 +99,7 @@ export function checkProof(
 
   // Validate each step
   for (let i = 0; i < steps.length; i++) {
-    const step = steps[i]!;
-
-    // Special handling for premises (first steps at depth 0 with rule 'assumption')
-    // In a standard proof, premises come first as assumptions at depth 0
-    if (step.rule === 'assumption' && step.depth === 0 && isPremise(step.formula, premises)) {
-      // This is a valid premise assumption - skip other validation
-      continue;
-    }
-
-    // Validate theorem citations
-    if (step.rule === 'theorem') {
-      const theorem = theoremLibrary.find((t) => t.id === step.theoremId);
-      if (!theorem) {
-        allErrors.push({
-          stepId: step.id,
-          message: `Theorem ${step.theoremId} not found in library`,
-          code: 'THEOREM_NOT_FOUND',
-        });
-        continue;
-      }
-      if (!formulaEquals(theorem.conclusion, step.formula)) {
-        allErrors.push({
-          stepId: step.id,
-          message: 'Formula does not match theorem conclusion',
-          code: 'THEOREM_MISMATCH',
-        });
-      }
-      // TODO: Verify theorem premises are satisfied
-      continue;
-    }
-
-    // Compute accessibility on-demand for only the justifications this step references
-    const depth = step.depth;
-    const checkAccessible = (targetIdx: number) => isLineAccessible(lines, targetIdx, i, depth);
-    const stepErrors = validateStep(step, lines, i, checkAccessible);
+    const stepErrors = validateOneStep(steps[i]!, lines, i, premises, theoremLibrary);
     allErrors.push(...stepErrors);
   }
 
@@ -235,24 +201,61 @@ function isPremise(formula: Formula, premises: Formula[]): boolean {
 }
 
 /**
+ * Validate a single step within a proof context.
+ * Shared by both checkProof (batch) and validateNewStep (incremental).
+ */
+function validateOneStep(
+  step: ProofStep,
+  lines: ProofLineInfo[],
+  currentIdx: number,
+  premises: Formula[],
+  theoremLibrary: ProvenTheorem[] = [],
+): ValidationError[] {
+  // Premises: assumptions at depth 0 matching a known premise
+  if (step.rule === 'assumption' && step.depth === 0 && isPremise(step.formula, premises)) {
+    return [];
+  }
+
+  // Theorem citations
+  if (step.rule === 'theorem') {
+    const errors: ValidationError[] = [];
+    const theorem = theoremLibrary.find((t) => t.id === step.theoremId);
+    if (!theorem) {
+      errors.push({
+        stepId: step.id,
+        message: `Theorem ${step.theoremId} not found in library`,
+        code: 'THEOREM_NOT_FOUND',
+      });
+      return errors;
+    }
+    if (!formulaEquals(theorem.conclusion, step.formula)) {
+      errors.push({
+        stepId: step.id,
+        message: 'Formula does not match theorem conclusion',
+        code: 'THEOREM_MISMATCH',
+      });
+    }
+    // TODO: Verify theorem premises are satisfied
+    return errors;
+  }
+
+  // General rule validation with on-demand accessibility
+  const checkAccessible = (targetIdx: number) =>
+    isLineAccessible(lines, targetIdx, currentIdx, step.depth);
+  return validateStep(step, lines, currentIdx, checkAccessible);
+}
+
+/**
  * Quick validation for a single step being added to an existing proof.
  * More efficient than rechecking the entire proof.
  */
 export function validateNewStep(
   existingSteps: ProofStep[],
   newStep: ProofStep,
-  premises: Formula[]
+  premises: Formula[],
+  theoremLibrary: ProvenTheorem[] = [],
 ): ValidationError[] {
   const allSteps = [...existingSteps, newStep];
   const lines = buildProofLineInfo(allSteps);
-  const currentIdx = allSteps.length - 1;
-
-  // Handle premises
-  if (newStep.rule === 'assumption' && newStep.depth === 0 && isPremise(newStep.formula, premises)) {
-    return [];
-  }
-
-  const checkAccessible = (targetIdx: number) =>
-    isLineAccessible(lines, targetIdx, currentIdx, newStep.depth);
-  return validateStep(newStep, lines, currentIdx, checkAccessible);
+  return validateOneStep(newStep, lines, allSteps.length - 1, premises, theoremLibrary);
 }
