@@ -1,6 +1,6 @@
 import type { Formula, ProofStep, ValidationError, ProofCheckResult, ProvenTheorem } from '../types.js';
 import { formulaEquals } from '../parser/parser.js';
-import type { ProofLineInfo, ValidationContext } from './validator.js';
+import type { ProofLineInfo } from './validator.js';
 import { validateStep } from './validator.js';
 import { opensSubproof } from './rules.js';
 
@@ -111,12 +111,6 @@ export function checkProof(
       return { ...line, accessible };
     });
 
-    const context: ValidationContext = {
-      lines: contextLines,
-      currentIndex: i,
-      currentDepth: step.depth,
-    };
-
     // Special handling for premises (first steps at depth 0 with rule 'assumption')
     // In a standard proof, premises come first as assumptions at depth 0
     if (step.rule === 'assumption' && step.depth === 0 && isPremise(step.formula, premises)) {
@@ -146,7 +140,7 @@ export function checkProof(
       continue;
     }
 
-    const stepErrors = validateStep(step, context);
+    const stepErrors = validateStep(step, contextLines);
     allErrors.push(...stepErrors);
   }
 
@@ -265,16 +259,10 @@ export function validateNewStep(
     accessible: isLineAccessible(lines, idx, currentIdx, newStep.depth),
   }));
 
-  const context: ValidationContext = {
-    lines: contextLines,
-    currentIndex: currentIdx,
-    currentDepth: newStep.depth,
-  };
-
   // Handle premises
   if (newStep.rule === 'assumption' && newStep.depth === 0 && isPremise(newStep.formula, premises)) {
     return [];
   }
 
-  return validateStep(newStep, context);
+  return validateStep(newStep, contextLines);
 }

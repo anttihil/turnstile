@@ -1,5 +1,5 @@
 import type { Formula, ProofStep, ValidationError } from '../types.js';
-import type { ProofLineInfo, ValidationContext } from './validator.js';
+import type { ProofLineInfo } from './validator.js';
 import type { RuleSchema, PremisePattern } from './schemas.js';
 import type { Substitution } from './patterns.js';
 import { matchPattern } from './patterns.js';
@@ -20,15 +20,15 @@ interface ResolvedJustification {
 
 function resolveJustification(
   justId: string,
-  context: ValidationContext,
+  lines: ProofLineInfo[],
 ): ResolvedJustification | null {
-  const info = context.lines.find((l) => l.step.id === justId);
+  const info = lines.find((l) => l.step.id === justId);
   if (!info) return null;
 
   const result: ResolvedJustification = { formula: info.step.formula };
 
   if (info.isSubproofStart && info.subproofEnd !== undefined) {
-    const endLine = context.lines[info.subproofEnd];
+    const endLine = lines[info.subproofEnd];
     if (endLine) {
       result.subproof = {
         assumption: info.step.formula,
@@ -139,7 +139,7 @@ function matchPremise(
  */
 export function validateBySchema(
   step: ProofStep,
-  context: ValidationContext,
+  lines: ProofLineInfo[],
 ): ValidationError[] | null {
   const schemas = SCHEMAS_BY_RULE.get(step.rule);
   if (!schemas) return null; // not a schema-based rule
@@ -147,7 +147,7 @@ export function validateBySchema(
   // Resolve all justifications
   const resolved: ResolvedJustification[] = [];
   for (const justId of step.justification) {
-    const r = resolveJustification(justId, context);
+    const r = resolveJustification(justId, lines);
     if (!r) {
       return [{
         stepId: step.id,

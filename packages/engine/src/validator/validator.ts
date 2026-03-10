@@ -16,20 +16,11 @@ export interface ProofLineInfo {
 }
 
 /**
- * Context for validating a proof step.
- */
-export interface ValidationContext {
-  lines: ProofLineInfo[];
-  currentIndex: number;
-  currentDepth: number;
-}
-
-/**
  * Validate a single proof step.
  */
 export function validateStep(
   step: ProofStep,
-  context: ValidationContext
+  lines: ProofLineInfo[]
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
@@ -54,7 +45,7 @@ export function validateStep(
 
   // Check all justifications are accessible
   for (const justId of step.justification) {
-    const justLine = context.lines.find((l) => l.step.id === justId);
+    const justLine = lines.find((l) => l.step.id === justId);
     if (!justLine) {
       errors.push({
         stepId: step.id,
@@ -75,7 +66,7 @@ export function validateStep(
   if (errors.length > 0) return errors;
 
   // Validate rule-specific logic
-  const ruleErrors = validateRuleApplication(step, context);
+  const ruleErrors = validateRuleApplication(step, lines);
   errors.push(...ruleErrors);
 
   return errors;
@@ -88,7 +79,7 @@ export function validateStep(
  */
 function validateRuleApplication(
   step: ProofStep,
-  context: ValidationContext
+  lines: ProofLineInfo[]
 ): ValidationError[] {
   // Handle non-schema rules explicitly
   switch (step.rule) {
@@ -108,7 +99,7 @@ function validateRuleApplication(
   }
 
   // Delegate to schema-based validator
-  const schemaResult = validateBySchema(step, context);
+  const schemaResult = validateBySchema(step, lines);
   if (schemaResult !== null) return schemaResult;
 
   return [{

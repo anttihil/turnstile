@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { checkProof, buildProofLineInfo, validateNewStep } from './checker.js';
-import { validateStep, ValidationContext, ProofLineInfo } from './validator.js';
 import { getRuleName, getRuleAbbreviation, getRequiredJustificationCount } from './rules.js';
 import { ProofStep, Formula, Var, Not, And, Or, Implies, Iff, Bottom } from '../types.js';
 import { parse } from '../parser/parser.js';
