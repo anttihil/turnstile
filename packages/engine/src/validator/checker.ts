@@ -101,16 +101,6 @@ export function checkProof(
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]!;
 
-    // Build context with lines up to this point, and accessibility from current position
-    const contextLines = lines.slice(0, i + 1).map((line, idx) => {
-      // A line is accessible if:
-      // 1. It's at same depth or shallower than current step
-      // 2. It's not inside a closed subproof
-      // 3. For lines in the same subproof, they must be before current line
-      const accessible = isLineAccessible(lines, idx, i, step.depth);
-      return { ...line, accessible };
-    });
-
     // Special handling for premises (first steps at depth 0 with rule 'assumption')
     // In a standard proof, premises come first as assumptions at depth 0
     if (step.rule === 'assumption' && step.depth === 0 && isPremise(step.formula, premises)) {
@@ -140,7 +130,10 @@ export function checkProof(
       continue;
     }
 
-    const stepErrors = validateStep(step, contextLines);
+    // Compute accessibility on-demand for only the justifications this step references
+    const depth = step.depth;
+    const checkAccessible = (targetIdx: number) => isLineAccessible(lines, targetIdx, i, depth);
+    const stepErrors = validateStep(step, lines, i, checkAccessible);
     allErrors.push(...stepErrors);
   }
 
@@ -254,15 +247,12 @@ export function validateNewStep(
   const lines = buildProofLineInfo(allSteps);
   const currentIdx = allSteps.length - 1;
 
-  const contextLines = lines.map((line, idx) => ({
-    ...line,
-    accessible: isLineAccessible(lines, idx, currentIdx, newStep.depth),
-  }));
-
   // Handle premises
   if (newStep.rule === 'assumption' && newStep.depth === 0 && isPremise(newStep.formula, premises)) {
     return [];
   }
 
-  return validateStep(newStep, contextLines);
+  const checkAccessible = (targetIdx: number) =>
+    isLineAccessible(lines, targetIdx, currentIdx, newStep.depth);
+  return validateStep(newStep, lines, currentIdx, checkAccessible);
 }

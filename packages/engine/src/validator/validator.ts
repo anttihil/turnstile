@@ -17,12 +17,20 @@ export interface ProofLineInfo {
 
 /**
  * Validate a single proof step.
+ *
+ * When `currentIdx` and `checkAccessible` are provided, accessibility is
+ * computed on-demand for each referenced justification instead of relying on
+ * a pre-mapped `accessible` property.  This avoids the O(n²) slice+map that
+ * would otherwise recompute accessibility for every prior line at every step.
  */
 export function validateStep(
   step: ProofStep,
-  lines: ProofLineInfo[]
+  lines: ProofLineInfo[],
+  currentIdx?: number,
+  checkAccessible?: (targetIdx: number) => boolean,
 ): ValidationError[] {
   const errors: ValidationError[] = [];
+  const maxIdx = currentIdx ?? lines.length - 1;
 
   // Check justification count
   const [minJust, maxJust] = getRequiredJustificationCount(step.rule);
@@ -45,7 +53,7 @@ export function validateStep(
 
   // Check all justifications are accessible
   for (const justId of step.justification) {
-    const justLine = lines.find((l) => l.step.id === justId);
+    const justLine = lines.find((l) => l.step.id === justId && l.index <= maxIdx);
     if (!justLine) {
       errors.push({
         stepId: step.id,
@@ -54,7 +62,8 @@ export function validateStep(
       });
       continue;
     }
-    if (!justLine.accessible) {
+    const accessible = checkAccessible ? checkAccessible(justLine.index) : justLine.accessible;
+    if (!accessible) {
       errors.push({
         stepId: step.id,
         message: `Line ${justLine.index + 1} is not accessible (inside closed subproof)`,
