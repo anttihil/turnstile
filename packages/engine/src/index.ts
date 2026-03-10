@@ -14,3 +14,6 @@ export * from './truth-table/generate.js';
 export * from './validator/rules.js';
 export * from './validator/validator.js';
 export * from './validator/checker.js';
+export * from './validator/patterns.js';
+export * from './validator/schemas.js';
+export * from './validator/schema-validator.js';

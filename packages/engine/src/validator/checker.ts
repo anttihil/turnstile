@@ -115,7 +115,6 @@ export function checkProof(
       lines: contextLines,
       currentIndex: i,
       currentDepth: step.depth,
-      premises,
     };
 
     // Special handling for premises (first steps at depth 0 with rule 'assumption')
@@ -270,7 +269,6 @@ export function validateNewStep(
     lines: contextLines,
     currentIndex: currentIdx,
     currentDepth: newStep.depth,
-    premises,
   };
 
   // Handle premises
