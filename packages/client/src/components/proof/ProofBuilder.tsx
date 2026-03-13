@@ -1,12 +1,11 @@
 import type { Component } from 'solid-js';
-import { createSignal, createMemo, createEffect, For } from 'solid-js';
+import { createSignal, createMemo, createEffect, Show } from 'solid-js';
 import type { Problem, ProofStep, Formula, InferenceRule, DisplayMode } from '@turnstile/engine';
-import { checkProof } from '@turnstile/engine';
+import { checkProof, parseFormula, printFormula } from '@turnstile/engine';
 import { ProofWorkspace } from './ProofWorkspace';
-import { StepEditor } from './StepEditor';
-import { ValidationFeedback } from './ValidationFeedback';
-import { Button } from '../ui/Button';
-import { FormulaDisplay } from '../playground/FormulaDisplay';
+import { ProofHeader } from './ProofHeader';
+import { RuleSidebar, ruleJustificationCounts } from './RuleSidebar';
+import { StepModal } from './StepModal';
 
 interface ProofBuilderProps {
   problem: Problem;
@@ -14,17 +13,31 @@ interface ProofBuilderProps {
   onComplete?: (steps: ProofStep[]) => void;
 }
 
-// Generate a unique ID for proof steps
 let stepCounter = 0;
 const generateStepId = () => `step-${++stepCounter}`;
 
 export const ProofBuilder: Component<ProofBuilderProps> = (props) => {
   const [steps, setSteps] = createSignal<ProofStep[]>([]);
-  const [selectedLine, setSelectedLine] = createSignal<number | null>(null);
+  const [editingLineIndex, setEditingLineIndex] = createSignal<number | null>(null);
+  const [editorFormula, setEditorFormula] = createSignal('');
+  const [editorParsedFormula, setEditorParsedFormula] = createSignal<Formula | null>(null);
+  const [editorParseError, setEditorParseError] = createSignal<string | null>(null);
+  const [editorRule, setEditorRule] = createSignal<InferenceRule | null>(null);
+  const [editorJustifications, setEditorJustifications] = createSignal<number[]>([]);
+
+  // Modal state
+  const [modalOpen, setModalOpen] = createSignal(false);
+  const [modalRule, setModalRule] = createSignal<InferenceRule | null>(null);
+  const [modalTargetIndex, setModalTargetIndex] = createSignal<number | null>(null);
+  const [modalFormula, setModalFormula] = createSignal('');
+  const [modalParsedFormula, setModalParsedFormula] = createSignal<Formula | null>(null);
+  const [modalParseError, setModalParseError] = createSignal<string | null>(null);
+  const [modalJustifications, setModalJustifications] = createSignal<number[]>([]);
+
+  let workspaceRef: HTMLDivElement | undefined;
 
   const mode = () => props.mode ?? 'utf8';
 
-  // Calculate current subproof depth
   const currentDepth = createMemo(() => {
     const proofSteps = steps();
     if (proofSteps.length === 0) return 0;
@@ -32,172 +45,307 @@ export const ProofBuilder: Component<ProofBuilderProps> = (props) => {
     return lastStep ? lastStep.depth : 0;
   });
 
-  // Create a map from line numbers to step IDs
   const lineToIdMap = createMemo(() => {
     const map = new Map<number, string>();
-    steps().forEach((step, index) => {
-      map.set(index + 1, step.id);
-    });
+    steps().forEach((step, index) => map.set(index + 1, step.id));
     return map;
   });
 
-  // Create a map from step IDs to line numbers
   const idToLineMap = createMemo(() => {
     const map = new Map<string, number>();
-    steps().forEach((step, index) => {
-      map.set(step.id, index + 1);
-    });
+    steps().forEach((step, index) => map.set(step.id, index + 1));
     return map;
   });
 
-  // Validate the proof
   const validationResult = createMemo(() => {
     const proofSteps = steps();
-    if (proofSteps.length === 0) {
-      return { isValid: true, errors: [], isComplete: false };
-    }
-
+    if (proofSteps.length === 0) return { isValid: true, errors: [], isComplete: false };
     const result = checkProof(proofSteps, props.problem.premises, props.problem.conclusion);
-
-    // Convert validation errors to include line numbers
     const errors: { lineNumber: number; message: string }[] = [];
     for (const error of result.errors) {
       const lineNumber = idToLineMap().get(error.stepId) ?? 0;
       errors.push({ lineNumber, message: error.message });
     }
-
-    return {
-      isValid: result.valid,
-      errors,
-      isComplete: result.complete,
-    };
+    return { isValid: result.valid, errors, isComplete: result.complete };
   });
 
-  // Get available lines for justification (lines at accessible depth)
-  const availableLines = createMemo(() => {
+  const errorMap = createMemo(() => {
+    const map = new Map<number, string>();
+    for (const error of validationResult().errors) map.set(error.lineNumber, error.message);
+    return map;
+  });
+
+  const canCommitEdit = createMemo(() => {
+    const formula = editorParsedFormula();
+    const rule = editorRule();
+    if (!formula || !rule) return false;
+    const expected = ruleJustificationCounts[rule];
+    return expected === undefined || editorJustifications().length === expected;
+  });
+
+  const modalAvailableLines = createMemo(() => {
+    const idx = modalTargetIndex();
     const proofSteps = steps();
+    const isNewStep = idx === null || idx >= proofSteps.length;
+    const depth = isNewStep ? currentDepth() : (proofSteps[idx!]?.depth ?? currentDepth());
+    const limit = isNewStep ? proofSteps.length : idx!;
     const available: number[] = [];
-    const depth = currentDepth();
-
-    for (let i = 0; i < proofSteps.length; i++) {
+    for (let i = 0; i < limit; i++) {
       const step = proofSteps[i];
-      if (step && step.depth <= depth) {
-        available.push(i + 1);
-      }
+      if (step && step.depth <= depth) available.push(i + 1);
     }
-
     return available;
   });
 
-  // Convert validation errors to a Map for the workspace
-  const errorMap = createMemo(() => {
-    const map = new Map<number, string>();
-    for (const error of validationResult().errors) {
-      map.set(error.lineNumber, error.message);
+  const canCommitModal = createMemo(() => {
+    const formula = modalParsedFormula();
+    const rule = modalRule();
+    if (!formula || !rule) return false;
+    const expected = ruleJustificationCounts[rule];
+    return expected === undefined || modalJustifications().length === expected;
+  });
+
+  const clearEditor = () => {
+    setEditorFormula('');
+    setEditorParsedFormula(null);
+    setEditorParseError(null);
+    setEditorRule(null);
+    setEditorJustifications([]);
+  };
+
+  // Pre-populate editor when entering edit mode on an existing step
+  createEffect(() => {
+    const idx = editingLineIndex();
+    if (idx === null || idx === steps().length) {
+      clearEditor();
+      return;
     }
-    return map;
+    const step = steps()[idx];
+    if (!step) return;
+    setEditorFormula(printFormula(step.formula, mode()));
+    setEditorParsedFormula(step.formula);
+    setEditorRule(step.rule);
+    setEditorJustifications(
+      step.justification.map((id) => idToLineMap().get(id) ?? 0).filter(Boolean)
+    );
+  });
+
+  // Live formula parsing for inline editor
+  createEffect(() => {
+    const text = editorFormula();
+    if (!text) {
+      setEditorParsedFormula(null);
+      setEditorParseError(null);
+      return;
+    }
+    const result = parseFormula(text);
+    if (result.success) {
+      setEditorParsedFormula(result.value);
+      setEditorParseError(null);
+    } else {
+      setEditorParsedFormula(null);
+      setEditorParseError(result.error.message);
+    }
+  });
+
+  // Live formula parsing for modal
+  createEffect(() => {
+    const text = modalFormula();
+    if (!text) {
+      setModalParsedFormula(null);
+      setModalParseError(null);
+      return;
+    }
+    const result = parseFormula(text);
+    if (result.success) {
+      setModalParsedFormula(result.value);
+      setModalParseError(null);
+    } else {
+      setModalParsedFormula(null);
+      setModalParseError(result.error.message);
+    }
+  });
+
+  // Notify parent when complete
+  createEffect(() => {
+    const result = validationResult();
+    if (result.isComplete && result.isValid) props.onComplete?.(steps());
   });
 
   const handleAddStep = (formula: Formula, rule: InferenceRule, justificationLines: number[]) => {
     const newDepth = rule === 'assumption' ? currentDepth() + 1 : currentDepth();
-
-    // Convert line numbers to step IDs
     const justificationIds = justificationLines.map((line) => lineToIdMap().get(line) ?? '');
+    setSteps([
+      ...steps(),
+      { id: generateStepId(), formula, rule, justification: justificationIds, depth: newDepth },
+    ]);
+  };
 
-    const newStep: ProofStep = {
-      id: generateStepId(),
-      formula,
-      rule,
-      justification: justificationIds,
-      depth: newDepth,
-    };
-
-    setSteps([...steps(), newStep]);
+  const handleUpdateStep = (
+    index: number,
+    formula: Formula,
+    rule: InferenceRule,
+    justificationLines: number[]
+  ) => {
+    const current = steps()[index];
+    if (!current) return;
+    const justificationIds = justificationLines.map((line) => lineToIdMap().get(line) ?? '');
+    setSteps(
+      steps().map((s, i) =>
+        i === index ? { ...current, formula, rule, justification: justificationIds } : s
+      )
+    );
   };
 
   const handleUndo = () => {
     const proofSteps = steps();
     if (proofSteps.length > 0) {
       setSteps(proofSteps.slice(0, -1));
+      setEditingLineIndex(null);
     }
   };
 
   const handleReset = () => {
     setSteps([]);
-    setSelectedLine(null);
+    setEditingLineIndex(null);
+    clearEditor();
   };
 
-  // Notify parent when proof is complete
-  createEffect(() => {
-    const result = validationResult();
-    if (result.isComplete && result.isValid) {
-      props.onComplete?.(steps());
+  const enterEditMode = (index: number) => setEditingLineIndex(index);
+
+  const cancelEdit = () => {
+    setEditingLineIndex(null);
+    workspaceRef?.focus();
+  };
+
+  const commitEdit = () => {
+    if (!canCommitEdit()) return;
+    const idx = editingLineIndex()!;
+    if (idx === steps().length) {
+      handleAddStep(editorParsedFormula()!, editorRule()!, editorJustifications());
+      clearEditor();
+      // Stay on new-step row for next entry
+    } else {
+      handleUpdateStep(idx, editorParsedFormula()!, editorRule()!, editorJustifications());
+      setEditingLineIndex(null);
+      workspaceRef?.focus();
     }
-  });
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const idx = editingLineIndex();
+    const max = steps().length;
+    if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+      e.preventDefault();
+      enterEditMode(idx === null ? 0 : Math.min(idx + 1, max));
+    } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+      e.preventDefault();
+      enterEditMode(idx === null ? max : Math.max(idx - 1, 0));
+    } else if (e.key === 'Enter' && idx !== null) {
+      e.preventDefault();
+      commitEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
+  };
+
+  const openModal = (rule: InferenceRule, targetIndex?: number) => {
+    const idx = targetIndex ?? null;
+    setModalRule(rule);
+    setModalTargetIndex(idx);
+    setModalJustifications([]);
+    if (idx !== null && idx < steps().length) {
+      const step = steps()[idx];
+      if (step) {
+        setModalFormula(printFormula(step.formula, mode()));
+        setModalJustifications(
+          step.justification.map((id) => idToLineMap().get(id) ?? 0).filter(Boolean)
+        );
+      } else {
+        setModalFormula('');
+      }
+    } else {
+      setModalFormula('');
+    }
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalRule(null);
+    setModalTargetIndex(null);
+    setModalFormula('');
+    setModalParsedFormula(null);
+    setModalParseError(null);
+    setModalJustifications([]);
+  };
+
+  const commitModal = () => {
+    if (!canCommitModal()) return;
+    const idx = modalTargetIndex();
+    if (idx === null || idx >= steps().length) {
+      handleAddStep(modalParsedFormula()!, modalRule()!, modalJustifications());
+    } else {
+      handleUpdateStep(idx, modalParsedFormula()!, modalRule()!, modalJustifications());
+    }
+    closeModal();
+  };
+
+  const handleModalLineToggle = (line: number) => {
+    const current = modalJustifications();
+    if (current.includes(line)) {
+      setModalJustifications(current.filter((l) => l !== line));
+    } else {
+      setModalJustifications([...current, line]);
+    }
+  };
 
   return (
-    <div class="space-y-6">
-      {/* Problem Statement */}
-      <div class="bg-slate-50 rounded-lg p-4">
-        <h3 class="text-sm font-semibold text-slate-700 mb-2">Prove:</h3>
-        <div class="space-y-2">
-          <div class="flex items-center gap-2">
-            <span class="text-sm text-slate-500">Premises:</span>
-            <div class="flex flex-wrap gap-2">
-              <For each={props.problem.premises}>
-                {(premise) => (
-                  <span class="font-mono bg-white px-2 py-1 rounded border border-slate-200">
-                    <FormulaDisplay formula={premise} mode={mode()} />
-                  </span>
-                )}
-              </For>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm text-slate-500">Conclusion:</span>
-            <span class="font-mono bg-white px-2 py-1 rounded border border-slate-200 font-semibold">
-              <FormulaDisplay formula={props.problem.conclusion} mode={mode()} />
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Proof Workspace */}
-      <ProofWorkspace
-        steps={steps()}
+    <div class="flex flex-col h-[calc(100vh-4rem)]">
+      <ProofHeader
+        problem={props.problem}
         mode={mode()}
-        selectedLine={selectedLine()}
-        errors={errorMap()}
-        onSelectLine={setSelectedLine}
-      />
-
-      {/* Controls */}
-      <div class="flex gap-2">
-        <Button variant="ghost" size="sm" onClick={handleUndo} disabled={steps().length === 0}>
-          Undo
-        </Button>
-        <Button variant="ghost" size="sm" onClick={handleReset} disabled={steps().length === 0}>
-          Reset
-        </Button>
-        <div class="flex-1" />
-        <span class="text-sm text-slate-500 self-center">
-          Depth: {currentDepth()}
-        </span>
-      </div>
-
-      {/* Validation Feedback */}
-      <ValidationFeedback
-        errors={validationResult().errors}
-        isValid={validationResult().isValid}
-        isComplete={validationResult().isComplete}
-      />
-
-      {/* Step Editor */}
-      <StepEditor
-        availableLines={availableLines()}
         currentDepth={currentDepth()}
-        onAddStep={handleAddStep}
+        validationResult={validationResult()}
+        stepsLength={steps().length}
+        onUndo={handleUndo}
+        onReset={handleReset}
       />
+      <div class="flex flex-1 min-h-0">
+        <ProofWorkspace
+          ref={(el) => (workspaceRef = el)}
+          steps={steps()}
+          mode={mode()}
+          errors={errorMap()}
+          editingLineIndex={editingLineIndex()}
+          editorFormula={editorFormula()}
+          editorParseError={editorParseError()}
+          currentDepth={currentDepth()}
+          onSelectLine={enterEditMode}
+          onEditorFormulaChange={setEditorFormula}
+          onKeyDown={handleKeyDown}
+        />
+        <RuleSidebar
+          onRuleClick={(rule) => openModal(rule, editingLineIndex() ?? undefined)}
+        />
+      </div>
+      <Show when={modalOpen() && modalRule() !== null}>
+        <StepModal
+          rule={modalRule()!}
+          isNewStep={modalTargetIndex() === null || modalTargetIndex()! >= steps().length}
+          formula={modalFormula()}
+          parseError={modalParseError()}
+          justifications={modalJustifications()}
+          availableLines={modalAvailableLines()}
+          canCommit={canCommitModal()}
+          onFormulaChange={setModalFormula}
+          onLineToggle={handleModalLineToggle}
+          onClearLines={() => setModalJustifications([])}
+          onCommit={commitModal}
+          onCancel={closeModal}
+        />
+      </Show>
     </div>
   );
 };

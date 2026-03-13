@@ -106,7 +106,7 @@ export function getRequiredJustificationCount(rule: InferenceRule): [number, num
     case 'raa':
       return [1, 1]; // Need subproof ¬A→⊥
     case 'theorem':
-      return [0, 0]; // Citing proven theorem, no line justification
+      return [0, Infinity]; // Justification count validated by schema matching
   }
 }
 

@@ -4,9 +4,8 @@ import type { InferenceRule } from '@turnstile/engine';
 import { Button } from '../ui/Button';
 
 interface RulePaletteProps {
-  onSelectRule: (rule: InferenceRule) => void;
+  onRuleClick: (rule: InferenceRule) => void;
   availableRules?: InferenceRule[];
-  selectedRule?: InferenceRule | null;
 }
 
 interface RuleGroup {
@@ -85,9 +84,9 @@ export const RulePalette: Component<RulePaletteProps> = (props) => {
                 <For each={group.rules}>
                   {(ruleInfo) => (
                     <Button
-                      variant={props.selectedRule === ruleInfo.rule ? 'primary' : 'ghost'}
+                      variant="ghost"
                       size="sm"
-                      onClick={() => props.onSelectRule(ruleInfo.rule)}
+                      onClick={() => props.onRuleClick(ruleInfo.rule)}
                       disabled={!isRuleAvailable(ruleInfo.rule)}
                       title={ruleInfo.label}
                     >

@@ -1,6 +1,6 @@
 import type { Component } from 'solid-js';
 import { createSignal, Show } from 'solid-js';
-import type { Formula, ParseResult, DisplayMode } from '@turnstile/engine';
+import type { Formula, ParseResult } from '@turnstile/engine';
 import { FormulaInput } from './FormulaInput';
 import { FormulaDisplay } from './FormulaDisplay';
 import { TruthTableDisplay } from './TruthTableDisplay';
@@ -9,7 +9,6 @@ import { Button } from '../ui/Button';
 export const Playground: Component = () => {
   const [input, setInput] = createSignal('');
   const [formula, setFormula] = createSignal<Formula | null>(null);
-  const [displayMode, setDisplayMode] = createSignal<DisplayMode>('utf8');
   const [showTruthTable, setShowTruthTable] = createSignal(true);
 
   const handleParsed = (result: ParseResult<Formula>) => {
@@ -33,31 +32,11 @@ export const Playground: Component = () => {
         />
       </div>
 
-      <div class="mb-6 flex gap-4 items-center">
-        <span class="text-sm font-medium text-slate-700">Display mode:</span>
-        <div class="flex gap-2">
-          <Button
-            variant={displayMode() === 'utf8' ? 'primary' : 'ghost'}
-            size="sm"
-            onClick={() => setDisplayMode('utf8')}
-          >
-            Symbols (∧ ∨ →)
-          </Button>
-          <Button
-            variant={displayMode() === 'ascii' ? 'primary' : 'ghost'}
-            size="sm"
-            onClick={() => setDisplayMode('ascii')}
-          >
-            {"ASCII (/\\ \\/ ->)"}
-          </Button>
-        </div>
-      </div>
-
       <Show when={formula()}>
         <div class="mb-6 p-4 bg-slate-50 rounded-lg">
           <h2 class="text-lg font-semibold mb-2">Parsed Formula</h2>
           <div class="text-2xl font-mono">
-            <FormulaDisplay formula={formula()!} mode={displayMode()} />
+            <FormulaDisplay formula={formula()!} />
           </div>
         </div>
 
@@ -73,7 +52,7 @@ export const Playground: Component = () => {
         <Show when={showTruthTable()}>
           <div class="p-4 bg-white rounded-lg border border-slate-200">
             <h2 class="text-lg font-semibold mb-4">Truth Table</h2>
-            <TruthTableDisplay formula={formula()!} mode={displayMode()} />
+            <TruthTableDisplay formula={formula()!} />
           </div>
         </Show>
       </Show>
@@ -91,22 +70,22 @@ export const Playground: Component = () => {
             <div>
               <h3 class="font-medium mb-1">Operators</h3>
               <ul class="space-y-1 text-slate-600">
-                <li><code class="bg-slate-200 px-1 rounded">/\</code> or <code class="bg-slate-200 px-1 rounded">&</code> - AND (∧)</li>
-                <li><code class="bg-slate-200 px-1 rounded">\/</code> or <code class="bg-slate-200 px-1 rounded">|</code> - OR (∨)</li>
-                <li><code class="bg-slate-200 px-1 rounded">~</code> - NOT (¬)</li>
-                <li><code class="bg-slate-200 px-1 rounded">-&gt;</code> - IMPLIES (→)</li>
-                <li><code class="bg-slate-200 px-1 rounded">&lt;-&gt;</code> - IFF (↔)</li>
-                <li><code class="bg-slate-200 px-1 rounded">_|_</code> - FALSE (⊥)</li>
+                <li><code class="bg-slate-200 px-1 rounded">&amp;</code> or <code class="bg-slate-200 px-1 rounded">and</code> — AND (∧)</li>
+                <li><code class="bg-slate-200 px-1 rounded">or</code> or <code class="bg-slate-200 px-1 rounded">v</code> — OR (∨)</li>
+                <li><code class="bg-slate-200 px-1 rounded">~</code> or <code class="bg-slate-200 px-1 rounded">not</code> — NOT (¬)</li>
+                <li><code class="bg-slate-200 px-1 rounded">-&gt;</code> or <code class="bg-slate-200 px-1 rounded">implies</code> — IMPLIES (→)</li>
+                <li><code class="bg-slate-200 px-1 rounded">&lt;-&gt;</code> or <code class="bg-slate-200 px-1 rounded">iff</code> — IFF (↔)</li>
+                <li><code class="bg-slate-200 px-1 rounded">_|_</code> — FALSE (⊥)</li>
               </ul>
             </div>
             <div>
               <h3 class="font-medium mb-1">Examples</h3>
               <ul class="space-y-1 text-slate-600 font-mono">
-                <li>P /\ Q</li>
-                <li>P \/ Q</li>
+                <li>P &amp; Q</li>
+                <li>P or Q</li>
                 <li>P -&gt; Q</li>
-                <li>~(P /\ Q)</li>
-                <li>(P -&gt; Q) /\ (Q -&gt; P)</li>
+                <li>~(P &amp; Q)</li>
+                <li>(P -&gt; Q) &amp; (Q -&gt; P)</li>
               </ul>
             </div>
           </div>

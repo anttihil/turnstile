@@ -1,4 +1,5 @@
 import type { ProofStep, ValidationError } from '../types.js';
+import type { SchemaRegistry } from './schemas.js';
 import { getRequiredJustificationCount } from './rules.js';
 import { validateBySchema } from './schema-validator.js';
 
@@ -26,6 +27,7 @@ export interface ProofLineInfo {
 export function validateStep(
   step: ProofStep,
   lines: ProofLineInfo[],
+  registry: SchemaRegistry,
   currentIdx?: number,
   checkAccessible?: (targetIdx: number) => boolean,
 ): ValidationError[] {
@@ -75,7 +77,7 @@ export function validateStep(
   if (errors.length > 0) return errors;
 
   // Validate rule-specific logic
-  const ruleErrors = validateRuleApplication(step, lines);
+  const ruleErrors = validateRuleApplication(step, lines, registry);
   errors.push(...ruleErrors);
 
   return errors;
@@ -83,32 +85,19 @@ export function validateStep(
 
 /**
  * Validate rule-specific logic.
- * Delegates to the schema-based validator for all standard rules.
- * Only 'assumption' and 'theorem' are handled explicitly.
+ * Delegates to the schema-based validator for all standard rules and theorems.
+ * Only 'assumption' is handled explicitly.
  */
 function validateRuleApplication(
   step: ProofStep,
-  lines: ProofLineInfo[]
+  lines: ProofLineInfo[],
+  registry: SchemaRegistry,
 ): ValidationError[] {
-  // Handle non-schema rules explicitly
-  switch (step.rule) {
-    case 'assumption':
-      return [];
-
-    case 'theorem': {
-      if (!step.theoremId) {
-        return [{
-          stepId: step.id,
-          message: 'Theorem citation requires a theorem ID',
-          code: 'MISSING_THEOREM_ID',
-        }];
-      }
-      return [];
-    }
+  if (step.rule === 'assumption') {
+    return [];
   }
 
-  // Delegate to schema-based validator
-  const schemaResult = validateBySchema(step, lines);
+  const schemaResult = validateBySchema(step, lines, registry);
   if (schemaResult !== null) return schemaResult;
 
   return [{
