@@ -1,6 +1,6 @@
-import type { InferenceRule } from '../types.js';
+import type { InferenceRule, ProvenTheorem } from '../types.js';
 import type { Pattern } from './patterns.js';
-import { Meta, PBottom, PNot, PAnd, POr, PImplies, PIff } from './patterns.js';
+import { Meta, PBottom, PNot, PAnd, POr, PImplies, PIff, formulaToPattern } from './patterns.js';
 
 // ============================================================================
 // Rule Schema Types
@@ -151,4 +151,40 @@ for (const schema of RULE_SCHEMAS) {
   } else {
     SCHEMAS_BY_RULE.set(schema.rule, [schema]);
   }
+}
+
+// ============================================================================
+// Schema Registry
+// ============================================================================
+
+export interface SchemaEntry {
+  id: string;
+  schemas: RuleSchema[];
+  enabled: boolean;
+}
+
+export type SchemaRegistry = Map<string, SchemaEntry>;
+
+function theoremToSchema(theorem: ProvenTheorem): RuleSchema {
+  return {
+    rule: 'theorem',
+    premises: theorem.premises.map((p) => line(formulaToPattern(p))),
+    conclusion: formulaToPattern(theorem.conclusion),
+    orderFlexible: false,
+  };
+}
+
+export function buildSchemaRegistry(theorems: ProvenTheorem[] = []): SchemaRegistry {
+  const registry: SchemaRegistry = new Map();
+  for (const [rule, schemas] of SCHEMAS_BY_RULE) {
+    registry.set(rule, { id: rule, schemas, enabled: true });
+  }
+  for (const theorem of theorems) {
+    registry.set(theorem.id, {
+      id: theorem.id,
+      schemas: [theoremToSchema(theorem)],
+      enabled: true,
+    });
+  }
+  return registry;
 }

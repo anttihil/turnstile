@@ -79,3 +79,23 @@ export function matchPattern(
     }
   }
 }
+
+// ============================================================================
+// Formula → Pattern Conversion
+// ============================================================================
+
+/**
+ * Convert a concrete Formula to a Pattern by treating propositional variable
+ * nodes as metavariables. Used to derive schemas from proven theorems.
+ */
+export function formulaToPattern(formula: Formula): Pattern {
+  switch (formula.kind) {
+    case 'var':     return Meta(formula.name);
+    case 'bottom':  return PBottom;
+    case 'not':     return PNot(formulaToPattern(formula.operand));
+    case 'and':     return PAnd(formulaToPattern(formula.left), formulaToPattern(formula.right));
+    case 'or':      return POr(formulaToPattern(formula.left), formulaToPattern(formula.right));
+    case 'implies': return PImplies(formulaToPattern(formula.left), formulaToPattern(formula.right));
+    case 'iff':     return PIff(formulaToPattern(formula.left), formulaToPattern(formula.right));
+  }
+}

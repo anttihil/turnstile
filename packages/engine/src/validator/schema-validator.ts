@@ -1,9 +1,8 @@
 import type { Formula, ProofStep, ValidationError } from '../types.js';
 import type { ProofLineInfo } from './validator.js';
-import type { RuleSchema, PremisePattern } from './schemas.js';
+import type { RuleSchema, PremisePattern, SchemaRegistry } from './schemas.js';
 import type { Substitution } from './patterns.js';
 import { matchPattern } from './patterns.js';
-import { SCHEMAS_BY_RULE } from './schemas.js';
 
 // ============================================================================
 // Justification Resolution
@@ -132,18 +131,30 @@ function matchPremise(
 // ============================================================================
 
 /**
- * Validate a rule application using declarative schemas.
- * Returns empty array on success, or an array of validation errors.
- *
- * Rules handled explicitly outside this function: 'assumption', 'theorem'.
+ * Validate a rule application using the schema registry.
+ * For 'theorem' steps, looks up by step.theoremId; for all others, by step.rule.
+ * Returns empty array on success, array of errors on failure, or null if no
+ * schema is found (unknown rule).
  */
 export function validateBySchema(
   step: ProofStep,
   lines: ProofLineInfo[],
+  registry: SchemaRegistry,
 ): ValidationError[] | null {
-  const schemas = SCHEMAS_BY_RULE.get(step.rule);
-  if (!schemas) return null; // not a schema-based rule
+  const lookupKey = step.rule === 'theorem' ? step.theoremId : step.rule;
+  if (!lookupKey) return null;
 
+  const entry = registry.get(lookupKey);
+  if (!entry || !entry.enabled) return null;
+
+  return validateWithSchemas(step, lines, entry.schemas);
+}
+
+function validateWithSchemas(
+  step: ProofStep,
+  lines: ProofLineInfo[],
+  schemas: RuleSchema[],
+): ValidationError[] {
   // Resolve all justifications
   const resolved: ResolvedJustification[] = [];
   for (const justId of step.justification) {
@@ -158,10 +169,20 @@ export function validateBySchema(
     resolved.push(r);
   }
 
+  // Only try schemas whose premise count matches the number of justifications
+  const matching = schemas.filter((s) => s.premises.length === resolved.length);
+  if (matching.length === 0) {
+    return [{
+      stepId: step.id,
+      message: `Wrong number of justifications for ${step.rule}`,
+      code: 'INSUFFICIENT_JUSTIFICATIONS',
+    }];
+  }
+
   // Track the best failure for error reporting
   let bestFailure: FailurePoint | null = null;
 
-  for (const schema of schemas) {
+  for (const schema of matching) {
     const orderings = schema.orderFlexible
       ? permutations(resolved)
       : [resolved];
@@ -169,12 +190,10 @@ export function validateBySchema(
     for (const ordering of orderings) {
       const result = tryMatch(schema, ordering, step.formula);
       if (result.success) return [];
-      // Keep track of how far we got (later failures are "closer" to success)
       bestFailure = result.failurePoint;
     }
   }
 
-  // Map failure point to error code and message
   return [mapFailureToError(step, bestFailure!)];
 }
 

@@ -3,6 +3,8 @@ import { formulaEquals } from '../parser/parser.js';
 import type { ProofLineInfo } from './validator.js';
 import { validateStep } from './validator.js';
 import { opensSubproof } from './rules.js';
+import { buildSchemaRegistry } from './schemas.js';
+import type { SchemaRegistry } from './schemas.js';
 
 /**
  * Build proof line information including subproof tracking.
@@ -96,10 +98,11 @@ export function checkProof(
 
   const allErrors: ValidationError[] = [];
   const lines = buildProofLineInfo(steps);
+  const registry = buildSchemaRegistry(theoremLibrary);
 
   // Validate each step
   for (let i = 0; i < steps.length; i++) {
-    const stepErrors = validateOneStep(steps[i]!, lines, i, premises, theoremLibrary);
+    const stepErrors = validateOneStep(steps[i]!, lines, i, premises, registry);
     allErrors.push(...stepErrors);
   }
 
@@ -209,40 +212,17 @@ function validateOneStep(
   lines: ProofLineInfo[],
   currentIdx: number,
   premises: Formula[],
-  theoremLibrary: ProvenTheorem[] = [],
+  registry: SchemaRegistry,
 ): ValidationError[] {
   // Premises: assumptions at depth 0 matching a known premise
   if (step.rule === 'assumption' && step.depth === 0 && isPremise(step.formula, premises)) {
     return [];
   }
 
-  // Theorem citations
-  if (step.rule === 'theorem') {
-    const errors: ValidationError[] = [];
-    const theorem = theoremLibrary.find((t) => t.id === step.theoremId);
-    if (!theorem) {
-      errors.push({
-        stepId: step.id,
-        message: `Theorem ${step.theoremId} not found in library`,
-        code: 'THEOREM_NOT_FOUND',
-      });
-      return errors;
-    }
-    if (!formulaEquals(theorem.conclusion, step.formula)) {
-      errors.push({
-        stepId: step.id,
-        message: 'Formula does not match theorem conclusion',
-        code: 'THEOREM_MISMATCH',
-      });
-    }
-    // TODO: Verify theorem premises are satisfied
-    return errors;
-  }
-
-  // General rule validation with on-demand accessibility
+  // General rule validation (including theorem steps) with on-demand accessibility
   const checkAccessible = (targetIdx: number) =>
     isLineAccessible(lines, targetIdx, currentIdx, step.depth);
-  return validateStep(step, lines, currentIdx, checkAccessible);
+  return validateStep(step, lines, registry, currentIdx, checkAccessible);
 }
 
 /**
@@ -257,5 +237,6 @@ export function validateNewStep(
 ): ValidationError[] {
   const allSteps = [...existingSteps, newStep];
   const lines = buildProofLineInfo(allSteps);
-  return validateOneStep(newStep, lines, allSteps.length - 1, premises, theoremLibrary);
+  const registry = buildSchemaRegistry(theoremLibrary);
+  return validateOneStep(newStep, lines, allSteps.length - 1, premises, registry);
 }
