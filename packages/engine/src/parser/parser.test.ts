@@ -19,9 +19,9 @@ describe('Lexer', () => {
     });
 
     it('tokenizes ASCII operators', () => {
-      const tokens = tokenize('~P /\\ Q \\/ R -> S <-> T');
+      const tokens = tokenize('~P & Q -> S <-> T');
       expect(tokens.map(t => t.type)).toEqual([
-        'NOT', 'VAR', 'AND', 'VAR', 'OR', 'VAR', 'IMPLIES', 'VAR', 'IFF', 'VAR', 'EOF'
+        'NOT', 'VAR', 'AND', 'VAR', 'IMPLIES', 'VAR', 'IFF', 'VAR', 'EOF'
       ]);
     });
 
@@ -32,9 +32,26 @@ describe('Lexer', () => {
       ]);
     });
 
-    it('tokenizes alternative operators', () => {
-      const tokens = tokenize('P & Q | R');
-      expect(tokens.map(t => t.type)).toEqual(['VAR', 'AND', 'VAR', 'OR', 'VAR', 'EOF']);
+    it('tokenizes & as AND', () => {
+      const tokens = tokenize('P & Q');
+      expect(tokens.map(t => t.type)).toEqual(['VAR', 'AND', 'VAR', 'EOF']);
+    });
+
+    it('tokenizes English keyword operators', () => {
+      const tokens = tokenize('not P and Q or R implies S iff T');
+      expect(tokens.map(t => t.type)).toEqual([
+        'NOT', 'VAR', 'AND', 'VAR', 'OR', 'VAR', 'IMPLIES', 'VAR', 'IFF', 'VAR', 'EOF'
+      ]);
+    });
+
+    it('tokenizes v as disjunction', () => {
+      const tokens = tokenize('P v Q');
+      expect(tokens.map(t => t.type)).toEqual(['VAR', 'OR', 'VAR', 'EOF']);
+    });
+
+    it('treats uppercase V as variable, not disjunction', () => {
+      const tokens = tokenize('V');
+      expect(tokens[0]).toEqual({ type: 'VAR', value: 'V', position: 0 });
     });
 
     it('tokenizes bottom', () => {
@@ -90,7 +107,7 @@ describe('Parser', () => {
     });
 
     it('parses conjunction', () => {
-      const result = parseFormula('P /\\ Q');
+      const result = parseFormula('P & Q');
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.value).toEqual(And(Var('P'), Var('Q')));
@@ -98,7 +115,7 @@ describe('Parser', () => {
     });
 
     it('parses disjunction', () => {
-      const result = parseFormula('P \\/ Q');
+      const result = parseFormula('P ∨ Q');
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.value).toEqual(Or(Var('P'), Var('Q')));
@@ -138,7 +155,7 @@ describe('Parser', () => {
     });
 
     it('handles precedence: AND binds tighter than OR', () => {
-      const result = parseFormula('P \\/ Q /\\ R');
+      const result = parseFormula('P ∨ Q & R');
       expect(result.success).toBe(true);
       if (result.success) {
         // Should be P ∨ (Q ∧ R)
@@ -147,7 +164,7 @@ describe('Parser', () => {
     });
 
     it('handles precedence: OR binds tighter than IMPLIES', () => {
-      const result = parseFormula('P -> Q \\/ R');
+      const result = parseFormula('P -> Q ∨ R');
       expect(result.success).toBe(true);
       if (result.success) {
         // Should be P → (Q ∨ R)
@@ -174,7 +191,7 @@ describe('Parser', () => {
     });
 
     it('conjunction is left-associative', () => {
-      const result = parseFormula('P /\\ Q /\\ R');
+      const result = parseFormula('P & Q & R');
       expect(result.success).toBe(true);
       if (result.success) {
         // Should be (P ∧ Q) ∧ R
@@ -183,7 +200,7 @@ describe('Parser', () => {
     });
 
     it('disjunction is left-associative', () => {
-      const result = parseFormula('P \\/ Q \\/ R');
+      const result = parseFormula('P ∨ Q ∨ R');
       expect(result.success).toBe(true);
       if (result.success) {
         // Should be (P ∨ Q) ∨ R
@@ -192,7 +209,7 @@ describe('Parser', () => {
     });
 
     it('NOT binds tighter than AND', () => {
-      const result = parseFormula('~P /\\ Q');
+      const result = parseFormula('~P & Q');
       expect(result.success).toBe(true);
       if (result.success) {
         // Should be (¬P) ∧ Q
@@ -201,7 +218,7 @@ describe('Parser', () => {
     });
 
     it('parses complex formula', () => {
-      const result = parseFormula('(P -> Q) /\\ (Q -> R) -> (P -> R)');
+      const result = parseFormula('(P -> Q) & (Q -> R) -> (P -> R)');
       expect(result.success).toBe(true);
       if (result.success) {
         // Hypothetical syllogism structure
@@ -219,6 +236,38 @@ describe('Parser', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.value).toEqual(And(Not(Var('P')), Var('Q')));
+      }
+    });
+
+    it('parses English keyword operators', () => {
+      const result = parseFormula('not P and Q');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.value).toEqual(And(Not(Var('P')), Var('Q')));
+      }
+    });
+
+    it('parses v as disjunction', () => {
+      const result = parseFormula('P v Q');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.value).toEqual(Or(Var('P'), Var('Q')));
+      }
+    });
+
+    it('parses English keywords with parentheses', () => {
+      const result = parseFormula('(P or Q) and (not R)');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.value).toEqual(And(Or(Var('P'), Var('Q')), Not(Var('R'))));
+      }
+    });
+
+    it('parses English implies and iff', () => {
+      const result = parseFormula('P implies Q iff R implies S');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.value).toEqual(Iff(Implies(Var('P'), Var('Q')), Implies(Var('R'), Var('S'))));
       }
     });
 
@@ -241,7 +290,7 @@ describe('Parser', () => {
     });
 
     it('returns error for missing operand', () => {
-      const result = parseFormula('P /\\');
+      const result = parseFormula('P &');
       expect(result.success).toBe(false);
     });
   });
@@ -336,7 +385,7 @@ describe('Printer', () => {
     });
 
     it('prints conjunction in ASCII', () => {
-      expect(printFormula(And(Var('P'), Var('Q')), 'ascii')).toBe('P /\\ Q');
+      expect(printFormula(And(Var('P'), Var('Q')), 'ascii')).toBe('P & Q');
     });
 
     it('prints disjunction in UTF-8', () => {
@@ -381,7 +430,7 @@ describe('Printer', () => {
     });
 
     it('roundtrips through parse and print', () => {
-      const input = '(P -> Q) /\\ (Q -> R) -> (P -> R)';
+      const input = '(P -> Q) & (Q -> R) -> (P -> R)';
       const formula = parse(input);
       const output = printFormula(formula, 'ascii');
       const reparsed = parse(output);

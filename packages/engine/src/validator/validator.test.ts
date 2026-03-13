@@ -79,7 +79,7 @@ describe('checkProof', () => {
       const steps: ProofStep[] = [
         makeStep('P', 'assumption', [], 0, 's1'),
         makeStep('Q', 'assumption', [], 0, 's2'),
-        makeStep('P /\\ Q', 'and_intro', ['s1', 's2'], 0, 's3'),
+        makeStep('P & Q', 'and_intro', ['s1', 's2'], 0, 's3'),
       ];
 
       const result = checkProof(steps, [Var('P'), Var('Q')], And(Var('P'), Var('Q')));
@@ -89,7 +89,7 @@ describe('checkProof', () => {
 
     it('validates and_elim_l', () => {
       const steps: ProofStep[] = [
-        makeStep('P /\\ Q', 'assumption', [], 0, 's1'),
+        makeStep('P & Q', 'assumption', [], 0, 's1'),
         makeStep('P', 'and_elim_l', ['s1'], 0, 's2'),
       ];
 
@@ -100,7 +100,7 @@ describe('checkProof', () => {
 
     it('validates and_elim_r', () => {
       const steps: ProofStep[] = [
-        makeStep('P /\\ Q', 'assumption', [], 0, 's1'),
+        makeStep('P & Q', 'assumption', [], 0, 's1'),
         makeStep('Q', 'and_elim_r', ['s1'], 0, 's2'),
       ];
 
@@ -113,7 +113,7 @@ describe('checkProof', () => {
       const steps: ProofStep[] = [
         makeStep('P', 'assumption', [], 0, 's1'),
         makeStep('Q', 'assumption', [], 0, 's2'),
-        makeStep('Q /\\ P', 'and_intro', ['s1', 's2'], 0, 's3'), // Wrong order
+        makeStep('Q & P', 'and_intro', ['s1', 's2'], 0, 's3'), // Wrong order
       ];
 
       const result = checkProof(steps, [Var('P'), Var('Q')], And(Var('Q'), Var('P')));
@@ -126,7 +126,7 @@ describe('checkProof', () => {
     it('validates or_intro_l', () => {
       const steps: ProofStep[] = [
         makeStep('P', 'assumption', [], 0, 's1'),
-        makeStep('P \\/ Q', 'or_intro_l', ['s1'], 0, 's2'),
+        makeStep('P ∨ Q', 'or_intro_l', ['s1'], 0, 's2'),
       ];
 
       const result = checkProof(steps, [Var('P')], Or(Var('P'), Var('Q')));
@@ -137,7 +137,7 @@ describe('checkProof', () => {
     it('validates or_intro_r', () => {
       const steps: ProofStep[] = [
         makeStep('Q', 'assumption', [], 0, 's1'),
-        makeStep('P \\/ Q', 'or_intro_r', ['s1'], 0, 's2'),
+        makeStep('P ∨ Q', 'or_intro_r', ['s1'], 0, 's2'),
       ];
 
       const result = checkProof(steps, [Var('Q')], Or(Var('P'), Var('Q')));
@@ -147,7 +147,7 @@ describe('checkProof', () => {
 
     it('validates or_elim', () => {
       const steps: ProofStep[] = [
-        makeStep('P \\/ Q', 'assumption', [], 0, 's1'),
+        makeStep('P ∨ Q', 'assumption', [], 0, 's1'),
         makeStep('P -> R', 'assumption', [], 0, 's2'),
         makeStep('Q -> R', 'assumption', [], 0, 's3'),
         // Subproof 1: Assume P, derive R
@@ -220,7 +220,7 @@ describe('checkProof', () => {
   describe('negation rules', () => {
     it('validates not_intro', () => {
       const steps: ProofStep[] = [
-        makeStep('P /\\ ~P', 'assumption', [], 0, 's1'),
+        makeStep('P & ~P', 'assumption', [], 0, 's1'),
         // Subproof: assume P, derive bottom
         makeStep('P', 'assumption', [], 1, 's2'),
         makeStep('P', 'and_elim_l', ['s1'], 1, 's3'),
@@ -324,7 +324,7 @@ describe('checkProof', () => {
     it('allows any formula from bottom', () => {
       const steps: ProofStep[] = [
         makeStep('_|_', 'assumption', [], 0, 's1'),
-        makeStep('(P /\\ Q) -> (R \\/ S)', 'bottom_elim', ['s1'], 0, 's2'),
+        makeStep('(P & Q) -> (R ∨ S)', 'bottom_elim', ['s1'], 0, 's2'),
       ];
 
       const result = checkProof(
@@ -382,7 +382,7 @@ describe('checkProof', () => {
   describe('error handling', () => {
     it('reports missing justification', () => {
       const steps: ProofStep[] = [
-        makeStep('P /\\ Q', 'and_intro', ['s1', 'nonexistent'], 0, 's2'),
+        makeStep('P & Q', 'and_intro', ['s1', 'nonexistent'], 0, 's2'),
       ];
 
       const result = checkProof(steps, [], And(Var('P'), Var('Q')));
@@ -415,7 +415,7 @@ describe('validateNewStep', () => {
       makeStep('P', 'assumption', [], 0, 's1'),
       makeStep('Q', 'assumption', [], 0, 's2'),
     ];
-    const newStep = makeStep('P /\\ Q', 'and_intro', ['s1', 's2'], 0, 's3');
+    const newStep = makeStep('P & Q', 'and_intro', ['s1', 's2'], 0, 's3');
 
     const errors = validateNewStep(existing, newStep, [Var('P'), Var('Q')]);
     expect(errors).toHaveLength(0);
@@ -425,7 +425,7 @@ describe('validateNewStep', () => {
     const existing: ProofStep[] = [
       makeStep('P', 'assumption', [], 0, 's1'),
     ];
-    const newStep = makeStep('P /\\ Q', 'and_intro', ['s1'], 0, 's2'); // Missing second justification
+    const newStep = makeStep('P & Q', 'and_intro', ['s1'], 0, 's2'); // Missing second justification
 
     const errors = validateNewStep(existing, newStep, [Var('P')]);
     expect(errors.length).toBeGreaterThan(0);
@@ -487,7 +487,7 @@ describe('complex proofs', () => {
     // Prove: P ∨ Q, P → R, Q → R ⊢ R
     // This is a simpler proof that demonstrates or_elim
     const steps: ProofStep[] = [
-      makeStep('P \\/ Q', 'assumption', [], 0, 'p1'),
+      makeStep('P ∨ Q', 'assumption', [], 0, 'p1'),
       makeStep('P -> R', 'assumption', [], 0, 'p2'),
       makeStep('Q -> R', 'assumption', [], 0, 'p3'),
       // Subproof 1: assume P, derive R

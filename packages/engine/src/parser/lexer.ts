@@ -38,7 +38,7 @@ export class Lexer {
     const startPos = this.position;
     const char = this.input[this.position]!;
 
-    // Single character tokens
+    // Parentheses
     if (char === '(') {
       this.position++;
       return { type: 'LPAREN', value: '(', position: startPos };
@@ -48,72 +48,45 @@ export class Lexer {
       return { type: 'RPAREN', value: ')', position: startPos };
     }
 
-    // NOT: ~ or ¬
-    if (char === '~' || char === '¬') {
-      this.position++;
-      return { type: 'NOT', value: char, position: startPos };
+    // Prefix table: longest match wins
+    //   ASCII:  <->   ->   _|_   ~   &
+    //   UTF-8:  ↔     →    ⊥     ¬   ∧   ∨
+    const prefixes: [string, Token['type']][] = [
+      ['<->', 'IFF'],
+      ['->', 'IMPLIES'],
+      ['_|_', 'BOTTOM'],
+      ['~', 'NOT'],
+      ['¬', 'NOT'],
+      ['&', 'AND'],
+      ['∧', 'AND'],
+      ['∨', 'OR'],
+      ['↔', 'IFF'],
+      ['→', 'IMPLIES'],
+      ['⊥', 'BOTTOM'],
+    ];
+
+    for (const [prefix, type] of prefixes) {
+      if (this.input.startsWith(prefix, this.position)) {
+        this.position += prefix.length;
+        return { type, value: prefix, position: startPos };
+      }
     }
 
-    // AND: /\ or & or ∧
-    if (char === '&' || char === '∧') {
-      this.position++;
-      return { type: 'AND', value: char, position: startPos };
-    }
-    if (char === '/' && this.peek(1) === '\\') {
-      this.position += 2;
-      return { type: 'AND', value: '/\\', position: startPos };
-    }
-
-    // OR: \/ or | or ∨
-    if (char === '∨') {
-      this.position++;
-      return { type: 'OR', value: char, position: startPos };
-    }
-    if (char === '|') {
-      this.position++;
-      return { type: 'OR', value: '|', position: startPos };
-    }
-    if (char === '\\' && this.peek(1) === '/') {
-      this.position += 2;
-      return { type: 'OR', value: '\\/', position: startPos };
-    }
-
-    // IFF: <-> or ↔
-    if (char === '↔') {
-      this.position++;
-      return { type: 'IFF', value: char, position: startPos };
-    }
-    if (char === '<' && this.peek(1) === '-' && this.peek(2) === '>') {
-      this.position += 3;
-      return { type: 'IFF', value: '<->', position: startPos };
-    }
-
-    // IMPLIES: -> or →
-    if (char === '→') {
-      this.position++;
-      return { type: 'IMPLIES', value: char, position: startPos };
-    }
-    if (char === '-' && this.peek(1) === '>') {
-      this.position += 2;
-      return { type: 'IMPLIES', value: '->', position: startPos };
-    }
-
-    // BOTTOM: _|_ or ⊥
-    if (char === '⊥') {
-      this.position++;
-      return { type: 'BOTTOM', value: char, position: startPos };
-    }
-    if (char === '_' && this.peek(1) === '|' && this.peek(2) === '_') {
-      this.position += 3;
-      return { type: 'BOTTOM', value: '_|_', position: startPos };
-    }
-
-    // Variable: [A-Za-z][A-Za-z0-9]*
+    // Alpha word → keyword switch or VAR
     if (this.isAlpha(char)) {
       let value = '';
       while (this.position < this.input.length && this.isAlphaNumeric(this.input[this.position]!)) {
         value += this.input[this.position];
         this.position++;
+      }
+      // English keywords (case-sensitive, lowercase)
+      switch (value) {
+        case 'not': return { type: 'NOT', value, position: startPos };
+        case 'and': return { type: 'AND', value, position: startPos };
+        case 'or':
+        case 'v': return { type: 'OR', value, position: startPos };
+        case 'implies': return { type: 'IMPLIES', value, position: startPos };
+        case 'iff': return { type: 'IFF', value, position: startPos };
       }
       return { type: 'VAR', value, position: startPos };
     }
@@ -127,10 +100,6 @@ export class Lexer {
     while (this.position < this.input.length && /\s/.test(this.input[this.position]!)) {
       this.position++;
     }
-  }
-
-  private peek(offset: number): string | undefined {
-    return this.input[this.position + offset];
   }
 
   private isAlpha(char: string): boolean {

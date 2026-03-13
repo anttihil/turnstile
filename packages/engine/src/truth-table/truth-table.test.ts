@@ -374,8 +374,8 @@ describe('integration with parser', () => {
   });
 
   it('checks equivalence of parsed formulas', () => {
-    const a = parse('~(P /\\ Q)');
-    const b = parse('~P \\/ ~Q');
+    const a = parse('~(P & Q)');
+    const b = parse('~P ∨ ~Q');
     expect(areEquivalent(a, b)).toBe(true);
   });
 

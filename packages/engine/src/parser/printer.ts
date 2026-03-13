@@ -5,8 +5,8 @@ import type { Formula, DisplayMode } from '../types.js';
  */
 const SYMBOLS = {
   ascii: {
-    and: ' /\\ ',
-    or: ' \\/ ',
+    and: ' & ',
+    or: ' or ',
     implies: ' -> ',
     iff: ' <-> ',
     not: '~',
